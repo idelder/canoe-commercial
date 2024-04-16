@@ -1,0 +1,6 @@
+﻿tech,fuel,end_use,description
+C_SPH_OIL-EXS,oil,space heating,oil - existing
+C_SPH_NG-EXS,natural gas,space heating,natural gas - existing
+C_SPH_ELC-EXS,electricity,space heating,electric - existing
+C_SPC_NG-EXS,natural gas,space cooling,natural gas - existing
+C_SPC_ELC-EXS,electricity,space cooling,electric - existing

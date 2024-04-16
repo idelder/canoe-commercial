@@ -1,0 +1,120 @@
+# Configuration for aggregation of residential sector
+
+period_step: 5 # Number of years between model periods
+
+# Future model planning periods
+model_periods:
+  - 2021
+  - 2025
+  - 2030
+  - 2035
+  - 2040
+  - 2045
+  - 2050
+
+weather_year: 2018 # For normalised timeseries data only
+base_year: 2020 # Default year to pull data from
+timezone: 'EST' # Final synchronised timezone for all timeseries data
+
+global_discount_rate: 0.05
+
+# Currency, data costs are exchanged and inflated in post processing
+final_currency: 'CAD' # Not configured to output currencies other than CAD yet
+final_currency_year: 2020
+inflation_index: 'gdp_deflator' # gdp_deflator, general_cpi, energy_and_petroleum, industrial, construction_non_residential
+
+# Annual capacity factor must be less than mean(DSD)/peak(DSD) or it cannot possibly have a capacity
+# ACF will be clamped to an upper bound of mean(DSD)/peak(DSD) x (1 - acf_buffer)
+# Try increasing this if the model is infeasible
+# The ACF limit changes if DSD is changed (e.g. during representative day selection/weighting) so a larger buffer is safer
+acf_buffer: 0.05
+
+# Ignore existing capacity which is less than this times total existing capacity, per end use
+# Straggler technologies lead to data issues (e.g. shows in Canadian province but not in analogue US state)
+# These tiny existing capacities also have minimal impact on model outcomes and only add more variables to solve
+existing_capacity_tolerance: 0.02
+
+# Set DSD to zero if less than this times hourly average (i.e. dsd(h) = 0 if dsd(h) < tol * mean(dsd))
+# For computational reasons
+dsd_tolerance: 0.02
+
+sqlite_schema: "canoe_schema.sql"
+sqlite_database: "commercial.sqlite"
+excel_template: "Template spreadsheet (make a copy).xlsx"
+excel_output: "commercial.xlsx"
+
+## Aggregation switches
+force_wipe_database: true # Forces clearing of all data in database prior to aggregation
+force_generate_weather_maps: false # Force regeneration of weather maps instead of using locally cached versions
+force_download: false # Forces downloading data again instead of using cached versions
+show_plots: true
+include_dsd: true # Aggregating DSDs is slow
+include_imports: true # Aggregates dummy import technologies for fuels
+include_emissions: true
+include_furnace_fans: true # Whether to include electricity consumption of fans in space heating
+clone_to_xlsx: false
+
+nrcan_url: "https://oee.nrcan.gc.ca/corporate/statistics/neud/dpa/data_e/downloads/comprehensive/Excel/<y>/com_<r>_e_<t>.xls"
+nrcan_reference: 'Natural Resources Canada, (2020). Comprehensive Energy Use Database. https://oee.nrcan.gc.ca/corporate/statistics/neud/dpa/menus/trends/comprehensive_tables/list.cfm'
+handbook_reference: 'Natural Resources Canada, (2020). Energy Use Data Handbook Tables. https://oee.nrcan.gc.ca/corporate/statistics/neud/dpa/menus/trends/handbook/tables.cfm'
+
+aeo_reference: 'EIA. (2023, July). Download the National Energy Modeling System (NEMS). AEO2023_Reference_case_CDM_technology_menu_ktekx [dataset]. https://www.eia.gov/outlooks/aeo/info_nems_archive.php'
+aeo_data_year: 2023
+aeo_installed_year: 2012 # Year of installed base data
+aeo_currency_year: 2022
+aeo_currency: 'USD'
+
+pop_reference: "Statistics Canada, (2022, August 22). Projected population, by projection scenario, age and sex, as of July 1. https://www150.statcan.gc.ca/t1/tbl1/en/cv.action?pid=1710005701"
+pop_data_year: 2022
+
+gdp_url: 'https://www.cer-rec.gc.ca/open/energy/energyfutures2021/macro-indicators-2021.csv'
+gdp_reference: 'CER (2021). Canadas Energy Future 2021: Energy Supply and Demand Projections to 2050 - macro-indicators-2021 - Open Government Portal. Retrieved 10 April 2024, from https://open.canada.ca/data/en/dataset/5a6abd9d-d343-41ef-a525-7a1efb686300/resource/ac214892-e9d1-46c1-a6f9-c2130c5e9b51'
+gdp_data_year: 2021
+
+epa_reference: "US EPA. (2023, March). GHG Emission Factors Hub [Overviews and Factsheets]. https://www.epa.gov/climateleadership/ghg-emission-factors-hub"
+epa_year: 2024 # If updating, check if GWP factors have changed and update below
+epa_url: 'https://www.epa.gov/system/files/documents/2024-02/ghg-emission-factors-hub-2024.xlsx'
+emission_commodity: 'CO2eq'
+emission_activity_units: 'ktCO2eq/PJ'
+
+conversion_factors:
+  epa_units:
+    'CO2': 0.948 # kg/MMBtu to kt/PJ
+    'CH4': 0.000948 # g/MMBtu to kt/PJ
+    'N2O': 0.000948 # g/MMBtu to kt/PJ
+  gwp:
+    'CO2': 1 # to CO2eq 100y GWP
+    'CH4': 28 # to CO2eq 100y GWP
+    'N2O': 265 # to CO2eq 100y GWP
+  efficiency:
+    'EER': 0.293 # kBtu/kWh to PJ/PJ
+  cost:
+    'aeo': 0.108198 # $/(kBtu/h) to M$/(PJ/y)
+
+comstock:
+  url: 'https://oedi-data-lake.s3.amazonaws.com/nrel-pds-building-stock/end-use-load-profiles-for-us-building-stock/2024/comstock_amy2018_release_1/timeseries_aggregates/by_state/upgrade=32/state=<su>/up32-<sl>-<b>.csv'
+  building_types:
+    - 'fullservicerestaurant'
+    - 'hospital'
+    - 'largehotel'
+    - 'largeoffice'
+    - 'mediumoffice'
+    - 'outpatient'
+    - 'primaryschool'
+    - 'quickservicerestaurant'
+    - 'retailstandalone'
+    - 'retailstripmall'
+    - 'secondaryschool'
+    - 'smallhotel'
+    - 'smalloffice'
+    - 'warehouse'
+  data_year: 2024
+  reference: 'NREL. (2024, March). ComStock-NREL (amy2018, v1.1, upgrade 32). https://data.openei.org/s3_viewer?bucket=oedi-data-lake&prefix=nrel-pds-building-stock%2Fend-use-load-profiles-for-us-building-stock%2F2024%2Fcomstock_amy2018_release_1%2Ftimeseries_aggregates%2Fby_state%2Fupgrade%253D32'
+
+weather:
+  us_temperature_url: https://www.renewables.ninja/country_downloads/US/renewables_ninja_country_US_temperature_merra-2_pop-wtd.csv
+  us_humidity_url: https://www.renewables.ninja/country_downloads/US/renewables_ninja_country_US_humidity_merra-2_pop-wtd.csv
+  ca_temperature_url: https://www.renewables.ninja/country_downloads/CA/renewables_ninja_country_CA_temperature_merra-2_pop-wtd.csv
+  ca_humidity_url: https://www.renewables.ninja/country_downloads/CA/renewables_ninja_country_CA_humidity_merra-2_pop-wtd.csv
+  api_token: 'c9907cf9e649bff44ca013c6493d5aed6b6c3170' # !!! TODO before publishing, make this a txt file
+  reference: 'Staffell et al. (2023) https://doi.org/10.1038/s41560-023-01341-5 https://www.renewables.ninja/'

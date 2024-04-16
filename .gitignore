@@ -1,0 +1,5 @@
+__pycache__/
+data_cache/
+deprecated/
+commercial.sqlite
+commercial*.xlsx

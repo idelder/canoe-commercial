@@ -1,0 +1,4 @@
+﻿end_use,comm,description,cap_unit,dem_unit,use_weather_map
+space heating,C_D_sph,demand for commercial space heating,PJ/y,PJ,TRUE
+space cooling,C_D_spc,demand for commercial space cooling,PJ/y,PJ,TRUE
+other,C_D_oth,demand for other commercial energy,PJ/y,PJ,FALSE

@@ -1,0 +1,19 @@
+﻿tech,include_new,aeo_tech,end_use,description,fuel
+C_SPHC_HP_AIR-NEW,TRUE,rooftop_ASHP-heat 2023 standard/2030 typical,space heating,air-source heat pump typical efficiency - new,electricity
+C_SPHC_HP_AIR-NEW,TRUE,rooftop_ASHP-cool 2023 standard/2030 typical,space cooling,air-source heat pump typical efficiency - new,electricity
+C_SPHC_HP_GEO-NEW,TRUE,comm_GSHP-heat 2023 typ 30% ITC,space heating,geo-exchange heat pump typical efficiency - new,electricity
+C_SPHC_HP_GEO-NEW,TRUE,comm_GSHP-cool 2023 typ 30% ITC,space cooling,geo-exchange heat pump typical efficiency - new,electricity
+C_SPHC_HP_NG_RES-NEW,TRUE,res_type_gasHP-heat 2020 typical,space heating,residential-type natural gas heat pump - new,natural gas
+C_SPHC_HP_NG_RES-NEW,TRUE,res_type_gasHP-cool 2020 typical,space cooling,residential-type natural gas heat pump - new,natural gas
+C_SPHC_HP_NG-NEW,TRUE,gas_eng-driven_RTHP-heat 2017 typical,space heating,gas-engine-driven heat pump - new,natural gas
+C_SPHC_HP_NG-NEW,TRUE,gas_eng-driven_RTHP-cool 2017 typical,space cooling,gas-engine-driven heat pump - new,natural gas
+C_SPH_ELC_BLR-NEW,TRUE,elec_boiler 2017 typical,space heating,electric boiler - new,electricity
+C_SPH_ELC_RES-NEW,TRUE,electric_res-heat 2012 installed base large,space heating,electric resistance heating - new,electricity
+C_SPH_NG_FRN-NEW,TRUE,gas_furnace 2020 typical/ 2023 standard,space heating,gas furnace - new,natural gas
+C_SPH_NG_BLR-NEW,TRUE,gas_boiler 2017 typical,space heating,gas boiler - new,natural gas
+C_SPH_OIL_FRN-NEW,TRUE,oil_furnace 2017 typical/ 2023 standard,space heating,oil furnace - new,oil
+C_SPH_OIL_BLR-NEW,TRUE,oil_boiler 2030 typical,space heating,oil boiler - new,oil
+C_SPC_AC_ROOF-NEW,TRUE,rooftop_AC 2030 typical/ 2023 standard,space cooling,rooftop air-conditioning - new,electricity
+C_SPC_AC_WALL-NEW,TRUE,wall-window_room_AC 2030 typical,space cooling,wall-window air-conditioning - new,electricity
+C_SPC_AC_RES-NEW,TRUE,res_type_central_AC 2023 standard north,space cooling,residential-type central air conditioning - new,electricity
+C_OTHER,TRUE,,other,all other commercial energy demand,
