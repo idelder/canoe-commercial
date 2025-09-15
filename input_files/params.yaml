@@ -17,6 +17,9 @@ timezone: 'EST' # Final synchronised timezone for all timeseries data
 
 global_discount_rate: 0.05
 
+data_id_prefix: 'COM'
+data_version: '001'
+
 # Currency, data costs are exchanged and inflated in post processing
 final_currency: 'CAD' # Not configured to output currencies other than CAD yet
 final_currency_year: 2020
@@ -26,8 +29,8 @@ inflation_index: 'gdp_deflator' # gdp_deflator, general_cpi, energy_and_petroleu
 # Reduces consumption of all fuels other than electricity by this fraction, and replaces them with electricity by final period
 # Canada Energy Futures puts this at around 0.65 from 2020 -> 2050
 other_electrification_factor: 0.62
-oef_note: "Assumed that 62% of non-electric fuel consumption is 1:1 switched for electricity by 2050, changing linearly (CER, 2023)"
-oef_reference: "CER. (2023). Canadas Energy Future Data Appendices [dataset]. https://doi.org/10.35002/ZJR8-8X75"
+cef_note: "Assumed that 62% of non-electric fuel consumption is 1:1 switched for electricity by 2050, changing linearly (CER, 2023)"
+cef_reference: "CER. (2023). Canadas Energy Future Data Appendices [dataset]. https://doi.org/10.35002/ZJR8-8X75"
 
 # NOT CURRENTLY IN USE - just omitting minACF instead
 # Annual capacity factor must be less than mean(DSD)/peak(DSD) or the model will be infeasible
@@ -46,7 +49,7 @@ existing_capacity_tolerance: 0.02
 # For computational reasons
 dsd_tolerance: 0.02
 
-sqlite_schema: "canoe_schema.sql"
+sqlite_schema: "canoe_dataset_schema.sql"
 sqlite_database: "commercial.sqlite"
 excel_template: "Template spreadsheet (make a copy).xlsx"
 excel_output: "commercial.xlsx"
@@ -57,7 +60,7 @@ force_generate_weather_maps: false # Force regeneration of weather maps instead 
 force_download: false # Forces downloading data again instead of using cached versions
 show_plots: true
 include_dsd: true # Aggregating DSDs is slow
-include_imports: true # Aggregates dummy import technologies for fuels
+include_imports: false # Aggregates dummy import technologies for fuels
 include_emissions: false
 include_furnace_fans: false # Whether to include electricity consumption of fans in space heating
 clone_to_xlsx: false

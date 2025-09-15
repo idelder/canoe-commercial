@@ -1,6 +1,6 @@
-﻿fuel,comm,description,unit,epa_fuel
-oil,C_oil,heating oil in the commercial sector,PJ,Distillate Fuel Oil No. 2
-natural gas,C_ng,natural gas in the commercial sector,PJ,Natural Gas
-electricity,C_elc,electricity in the commercial sector,PJ,
-ethos,C_ethos,dummy input - commercial,PJ,
-elc_dx,E_elc_dx,distribution-side electricity from the electricity sector,PJ,
+﻿fuel,comm,description,unit,epa_fuel,statcan_fuel
+oil,C_oil,heating oil in the commercial sector,PJ,Distillate Fuel Oil No. 2,Total refined petroleum products
+natural gas,C_ng,natural gas in the commercial sector,PJ,Natural Gas,Natural gas
+electricity,C_elc,electricity in the commercial sector,PJ,,"Primary electricity, hydro and nuclear"
+ethos,C_ethos,dummy input - commercial,PJ,,
+elc_dx,E_elc_dx,distribution-side electricity from the electricity sector,PJ,,

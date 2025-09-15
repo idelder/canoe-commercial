@@ -27,15 +27,63 @@ def instantiate_database():
     elif config.params['force_wipe_database']:
         tables = [t[0] for t in curs.execute("""SELECT name FROM sqlite_master WHERE type='table';""").fetchall()]
         for table in tables: curs.execute(f"DELETE FROM '{table}'")
+        curs.executescript(open(config.schema_file, 'r').read())
         print("Database wiped prior to aggregation. See params.\n")
-    
+
     conn.commit()
 
     # VACUUM operation to clean up any empty rows
-    curs.execute("VACUUM;")
+    conn.execute("VACUUM;")
     conn.commit()
 
     conn.close()
+
+
+
+class reference:
+    """
+    Stores a single reference and its attributes
+    - id: the unique id for the source_id column
+    - citation: the full citation to go in the DataSource table
+    """
+
+    id: str
+    citation: str
+
+    def __init__(self, id: str, citation: str):
+        self.id = id
+        self.citation = citation
+
+
+class bibliography:
+    """This class stores references and handles unique indexing"""
+
+    references: dict[str, reference] = dict()
+
+    def __iter__(self):
+        for name, ref in self.references.items():
+            yield ref
+
+    def add(cls, name: str, citation: str) -> reference | None:
+        """Add a reference to the log and return the reference object"""
+
+        if name in cls.references:
+            return cls.references[name]
+        else:
+            num = len(cls.references.keys()) + 1
+            id = f"C{num}" if num >= 10 else f"C0{num}" # C01 -> C99 unique IDs
+            ref = reference(id=id, citation=citation)
+            cls.references[name] = ref
+            return ref
+    
+    def get(cls, name: str) -> reference | None:
+        """Returns a reference by its semantic name"""
+
+        if name not in cls.references:
+            print(f"Tried to get a reference that had not been added yet: {name}")
+            return
+        else:
+            return cls.references[name]
 
 
 
@@ -45,6 +93,9 @@ class config:
     _this_dir = os.path.realpath(os.path.dirname(__file__)) + "/"
     input_files = _this_dir + 'input_files/'
     cache_dir = _this_dir + "data_cache/"
+
+    refs: bibliography = bibliography()
+    data_ids = set()
 
     if not os.path.exists(cache_dir): os.mkdir(cache_dir)
 
@@ -65,6 +116,7 @@ class config:
         cls._get_population_projections(cls._instance)
         cls._get_gdp_projections(cls._instance)
         cls._get_rninja_api(cls._instance)
+        cls._get_references(cls._instance)
 
         print('Instantiated setup config.\n')
 
@@ -103,6 +155,12 @@ class config:
         config.excel_target_file = config._this_dir + config.params['excel_output']
 
 
+    
+    def _get_references(cls):
+
+        config.refs.add('aeo', config.params['aeo_reference'])
+
+
 
     def _get_aeo_data(cls):
 
@@ -122,17 +180,28 @@ class config:
         config.populations = dict()
 
         # Get historical population data from Statcan and take Q1
-        df_exs = config._get_statcan_table(17100009, usecols=[0,1,9])
-        df_exs = df_exs.loc[df_exs['REF_DATE'].str.contains('-01')]
+        df_exs = config._get_statcan_table(
+            table=17100009,
+            save_as='population_historical',
+            filter=lambda df: df.loc[
+                df['REF_DATE'].str.contains('-01')
+            ],
+            usecols=[0,1,9],
+        )
         df_exs['REF_DATE'] = df_exs['REF_DATE'].str.removesuffix("-01")
 
         # Get projected population data from Statcan for M1 scenario
-        df_proj = config._get_statcan_table(17100057, usecols=[0,1,3,4,5,12])
+        df_proj = config._get_statcan_table(
+            table=17100057,
+            save_as='population_projection',
+            filter= lambda df: df.loc[
+                (df['Projection scenario'] == 'Projection scenario M1: medium-growth')
+                & (df['Gender'] == 'Total - gender')
+                & (df['Age group'] == 'All ages')
+            ],
+            usecols=[0,1,3,4,5,12],
+        )
         df_proj['VALUE'] *= 1000
-        df_proj = df_proj.loc[
-            (df_proj['Projection scenario'] == 'Projection scenario M1: medium-growth') & 
-            (df_proj['Gender'] == 'Total - gender') &
-            (df_proj['Age group'] == 'All ages')]
 
         # For each region, take historical first, then provincial, then index to Canadian when that runs out
         for region, row in config.regions.iterrows():
@@ -188,18 +257,18 @@ class config:
         
 
     # Have to put this here or it's awkward circular imports with utils
-    def _get_statcan_table(table, save_as=None, **kwargs):
-        
+    def _get_statcan_table(table, save_as=None, filter:'function'=None, **kwargs):
+
         if save_as == None: save_as = f"statcan_{table}.csv"
         if os.path.splitext(save_as)[1] != ".csv": save_as += ".csv"
 
-        if not config.params['force_download']  and os.path.isfile(config.cache_dir + save_as):
+        if not config.params['force_download'] and os.path.isfile(config.cache_dir + save_as):
 
             try:
 
                 df = pd.read_csv(config.cache_dir + save_as, index_col=0)
                 
-                print(f"Got Statcan table {table} from local cache.")
+                print(f"Got Statcan table {table} ({save_as}) from local cache.")
                 return df
             
             except Exception as e:
@@ -208,15 +277,15 @@ class config:
 
         # Make a request from the API for the table, returns response status and url for download
         url = f"https://www150.statcan.gc.ca/t1/wds/rest/getFullTableDownloadCSV/{table}/en"
-        response = requests.get(url).json()
+        response = requests.get(url)
 
         # If successful, download the table
-        if response['status'] == 'SUCCESS':
+        if response.ok:
 
             print(f"Downloading Statcan table {table}...")
 
             # Download and open the zip file
-            filehandle,_ = urllib.request.urlretrieve(response['object'])
+            filehandle,_ = urllib.request.urlretrieve(response.json()['object'])
             zip_file_object = zipfile.ZipFile(filehandle, 'r')
 
             # Read the table from inside the zip file
@@ -224,14 +293,16 @@ class config:
             df = pd.read_csv(from_file, **kwargs)
             from_file.close()
 
+            if filter: df = filter(df)
+
             df.to_csv(config.cache_dir + save_as)
 
-            print(f"Cached Statcan table {table}.")
+            print(f"Cached Statcan table {table} as {save_as}.")
             return df
 
         else:
 
-            print(f"Request for {table} from Statcan failed. Status: {response['status']}")
+            print(f"Request for {table} from Statcan failed. Status: {response.status_code}")
             return None
     
 

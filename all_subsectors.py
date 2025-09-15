@@ -30,7 +30,7 @@ def aggregate():
 
         df_dsd = comstock_dsd.calculate_dsds(region)
         df_exs = existing_capacity.aggregate_region(region, df_dsd)
-        new_capacity.aggregate_region(region, df_exs, df_dsd) # existing data for annual capacity factors
+        new_capacity.aggregate_region(region, df_exs) # existing data for annual capacity factors
         
         print(f"Aggregated {region}.\n")
 
@@ -57,37 +57,49 @@ def pre_process():
     ##############################################################
     """
 
-    for h, row in config.time.iterrows():
-        curs.execute(f"""REPLACE INTO
-                     time_season(t_season)
-                     VALUES('{row['season']}')""")
-        curs.execute(f"""REPLACE INTO
-                     time_of_day(t_day)
-                     VALUES('{row['time_of_day']}')""")
-        curs.execute(f"""REPLACE INTO
-                     SegFrac(season_name, time_of_day_name, segfrac)
-                     VALUES('{row['season']}', '{row['time_of_day']}', {1/8760})""")
+    for period in config.model_periods:
+        for h, row in config.time.iterrows():
+            curs.execute(
+                f"""REPLACE INTO
+                TimeSegmentFraction(season, tod, segfrac)
+                VALUES('{row['season']}', '{row['tod']}', {1/8760})"""
+            )
+
+        for i, season in enumerate(config.time['season'].unique()):
+            curs.execute(
+                f"""REPLACE INTO
+                TimeSeason(period, sequence, season)
+                VALUES({period}, {i}, '{season}')"""
+            )
+
+    for season in config.time['season'].unique():
+        curs.execute(
+            f"""REPLACE INTO
+            SeasonLabel(season)
+            VALUES('{season}')"""
+        )
+
+    for i, tod in enumerate(config.time['tod'].unique()):
+        curs.execute(
+            f"""REPLACE INTO
+            TimeOfDay(tod)
+            VALUES('{tod}')"""
+        )
         
-    for period in [*config.model_periods, config.model_periods[-1] + config.params['period_step']]:
-        curs.execute(f"""REPLACE INTO
-                     time_periods(t_periods, flag)
-                     VALUES({period}, 'f')""")
-        
-    for label, description in {'f': 'future', 'e': 'existing'}.items():
-        curs.execute(f"""INSERT OR IGNORE INTO
-                     time_period_labels(t_period_labels, t_period_labels_desc)
-                     VALUES('{label}', '{description}')""")
+    for i, period in enumerate([*config.model_periods, config.model_periods[-1] + config.params['period_step']]):
+        curs.execute(
+            f"""REPLACE INTO
+            TimePeriod(sequence, period, flag)
+            VALUES({i}, {period}, 'f')"""
+        )
 
     for region, row in config.regions.iterrows():
         if row['include']:
-            curs.execute(f"""REPLACE INTO
-                        regions(regions, region_note)
-                        VALUES('{region}', '{row['description']}')""")
-    
-    curs.execute(f"DELETE FROM GlobalDiscountRate") # has no indexing
-    curs.execute(f"""REPLACE INTO
-                GlobalDiscountRate(rate)
-                VALUES({config.params['global_discount_rate']})""")
+            curs.execute(
+                f"""REPLACE INTO
+                Region(region, notes)
+                VALUES('{region}', '{row['description']}')"""
+            )
 
 
     """
@@ -97,14 +109,19 @@ def pre_process():
     """
     
     for _code, comm_config in config.fuel_commodities.iterrows():
-        curs.execute(f"""REPLACE INTO
-                    commodities(comm_name, flag, comm_desc)
-                    VALUES('{comm_config['comm']}', 'p', '({comm_config['unit']}) {comm_config['description']}')""")
+        curs.execute(
+            f"""REPLACE INTO
+            Commodity(name, flag, description, data_id)
+            VALUES('{comm_config['comm']}', 'p', '({comm_config['unit']}) {comm_config['description']}', '{utils.data_id()}')"""
+        )
         
-    # CO2-equivalent emission commodity
-    curs.execute(f"""REPLACE INTO
-                commodities(comm_name, flag, comm_desc)
-                VALUES('{config.params['emission_commodity']}', 'e', '(ktCO2eq) CO2-equivalent emissions')""")
+    if config.params['include_emissions']:
+        # CO2-equivalent emission commodity
+        curs.execute(
+            f"""REPLACE INTO
+            Commodity(name, flag, description, data_id)
+            VALUES('{config.params['emission_commodity']}', 'e', '(ktCO2eq) CO2-equivalent emissions', '{utils.data_id()}')"""
+        )
 
 
     conn.commit()
@@ -129,25 +146,59 @@ def post_process():
     """
 
     # Add all existing vintages to existing time periods
-    vints = set([fetch[0] for fetch in curs.execute(f"SELECT vintage FROM Efficiency").fetchall() if fetch[0] not in config.model_periods])
+    exs_vints = set([fetch[0] for fetch in curs.execute(f"SELECT vintage FROM Efficiency").fetchall() if fetch[0] not in config.model_periods])
 
-    for vint in vints:
-        curs.execute(f"""INSERT OR IGNORE INTO
-                        time_periods(t_periods, flag)
-                        VALUES({vint}, 'e')""")
+    for vint in exs_vints:
+        curs.execute(
+            f"""INSERT OR IGNORE INTO
+            TimePeriod(period, flag)
+            VALUES({vint}, 'e')"""
+        )
 
 
-    conn.commit()
-    conn.close()
-
-    
     """
     ##############################################################
         References
     ##############################################################
     """
 
-    utils.fill_references_table()
+    # Add all references in the bibliography to the references tables
+    for reference in config.refs:
+        curs.execute(
+            f"""REPLACE INTO
+            DataSource(source_id, source, data_id)
+            VALUES('{reference.id}', '{reference.citation}', "{utils.data_id()}")"""
+        )
+
+    
+    """
+    ##############################################################
+        Data IDs
+    ##############################################################
+    """
+
+    for id in sorted(config.data_ids):
+        curs.execute(
+            f"""REPLACE INTO
+            DataSet(data_id)
+            VALUES('{id}')"""
+        )
+    
+    # Check for missing data IDs
+    tables = [t[0] for t in curs.execute("SELECT name FROM sqlite_master WHERE type='table';").fetchall()]
+
+    for table in tables:
+        cols = [c[1] for c in curs.execute(f"PRAGMA table_info({table})").fetchall()]
+        if "data_id" in cols:
+            bad_rows = pd.read_sql_query(f"SELECT * FROM {table} WHERE data_id is NULL", conn)
+            if len(bad_rows) > 0:
+                print(f"Found some rows missing data IDs in {table}")
+                print(bad_rows)
+
+    
+    conn.commit()
+    conn.close()
+
 
     print(f"Post-aggregation complete.\n")
 
@@ -176,10 +227,12 @@ def aggregate_emissions():
     for fact in emis_fact.columns: emis_fact[fact] = emis_fact[fact].astype(float) * conversion_factors['epa_units'][fact.strip(' Factor')] * conversion_factors['gwp'][fact.strip(' Factor')]
     emis_fact[emis_comm] = emis_fact.sum(axis=1)
 
+    ref = config.refs.add('epa', config.params['epa_reference'])
+
     for tech in config.all_techs:
 
         # Valid vintages and efficiencies from Efficiency table
-        rows = curs.execute(f"SELECT regions, input_comm, tech, vintage, output_comm, efficiency FROM Efficiency WHERE tech == '{tech}'").fetchall()
+        rows = curs.execute(f"SELECT region, input_comm, tech, vintage, output_comm, efficiency FROM Efficiency WHERE tech == '{tech}'").fetchall()
 
         for row in rows:
 
@@ -193,11 +246,13 @@ def aggregate_emissions():
             # Note assumed fuel
             note = f"Emissions factor using {epa_fuel} (EPA, {config.params['epa_year']}) divided by efficiency as emissions are per output unit energy."
 
-            curs.execute(f"""REPLACE INTO
-                        EmissionActivity(regions, emis_comm, input_comm, tech, vintage, output_comm, emis_act, emis_act_units, emis_act_notes,
-                        reference, data_year, dq_est, dq_rel, dq_comp, dq_time, dq_geog, dq_tech)
-                        VALUES('{row[0]}', '{emis_comm}', '{row[1]}', '{row[2]}', {row[3]}, '{row[4]}', {emis_act}, '{emis_units}', '{note}',
-                        '{config.params['epa_reference']}', {config.params['epa_year']}, 2, 1, 1, 1, 1, 3)""")
+            curs.execute(
+                f"""REPLACE INTO
+                EmissionActivity(region, emis_comm, input_comm, tech, vintage, output_comm, activity, units,
+                notes, data_source, dq_cred, dq_geog, dq_struc, dq_tech, dq_time, data_id)
+                VALUES('{row[0]}', '{emis_comm}', '{row[1]}', '{row[2]}', {row[3]}, '{row[4]}', {emis_act}, '{emis_units}',
+                '{note}', '{ref.id}', 1, 2, 3, 3, 2, '{utils.data_id(row[0])}')"""
+            )
     
 
     conn.commit()
@@ -227,9 +282,11 @@ def aggregate_imports():
         
         description = f"import dummy for {out_comm['description']}"
 
-        curs.execute(f"""REPLACE INTO
-                     technologies(tech, flag, sector, tech_desc)
-                     VALUES('{tech}', 'r', 'commercial', '{description}')""")
+        curs.execute(
+            f"""REPLACE INTO
+            Technology(tech, flag, sector, description)
+            VALUES('{tech}', 'p', 'commercial', '{description}')"""
+        )
         
         # A single vintage at first model period with no other parameters, classic dummy tech
         for region in config.model_regions:
@@ -239,10 +296,12 @@ def aggregate_imports():
                 print(f"Import {tech} skipped for region {region} as the fuel isn't used.")
                 continue
 
-            curs.execute(f"""REPLACE INTO
-                        Efficiency(regions, input_comm, tech, vintage, output_comm, efficiency, eff_notes)
-                        VALUES('{region}', '{config.fuel_commodities.loc[row['in_comm'], 'comm']}', '{tech}',
-                        '{config.model_periods[0]}', '{out_comm['comm']}', 1, '{description})')""")
+            curs.execute(
+                f"""REPLACE INTO
+                Efficiency(region, input_comm, tech, vintage, output_comm, efficiency, notes)
+                VALUES('{region}', '{config.fuel_commodities.loc[row['in_comm'], 'comm']}', '{tech}',
+                '{config.model_periods[0]}', '{out_comm['comm']}', 1, '{description})')"""
+            )
             
     conn.commit()
     conn.close()

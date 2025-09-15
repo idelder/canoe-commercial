@@ -11,10 +11,7 @@ import weather_mapping
 import os
 import utils
 
-
-
 comstock_map = pd.read_csv(config.input_files + 'comstock_map.csv', index_col=0) # load here so we dont do it once for every region
-
 
 
 def calculate_dsds(region: str):

@@ -1,11 +1,11 @@
-﻿region,description,include,nrcan_id,ca_rninja,us_state,us_census_div
-ON,ontario,TRUE,ON,CA.ON,MI,east north central
-AB,alberta,TRUE,AB,CA.AB,MT,mountain
-BC,british columbia,TRUE,BCT,CA.BC,WA,pacific
-QC,quebec,TRUE,QC,CA.QC,ME,new england
-MB,manitoba,TRUE,MB,CA.MB,ND,mountain
-SK,saskatchewan,TRUE,SK,CA.SK,ND,mountain
-NLLAB,newfoundland and labrador,FALSE,NL,CA.NF,ME,new england
-PEI,prince edward island,FALSE,PE,CA.PE,ME,new england
-NS,nova scotia,FALSE,ATL,CA.NS,ME,new england
-NB,new brunswick,FALSE,NB,CA.NB,ME,new england
+﻿region,description,include,nrcan_id,ca_rninja,us_state,us_census_div,atlantic
+ON,ontario,FALSE,ON,CA.ON,MI,east north central,FALSE
+AB,alberta,FALSE,AB,CA.AB,MT,mountain,FALSE
+BC,british columbia,FALSE,BCT,CA.BC,WA,pacific,FALSE
+QC,quebec,FALSE,QC,CA.QC,ME,new england,FALSE
+MB,manitoba,FALSE,MB,CA.MB,ND,mountain,FALSE
+SK,saskatchewan,FALSE,SK,CA.SK,ND,mountain,FALSE
+NLLAB,newfoundland and labrador,TRUE,ATL,CA.NF,ME,new england,TRUE
+PEI,prince edward island,TRUE,ATL,CA.PE,ME,new england,TRUE
+NS,nova scotia,TRUE,ATL,CA.NS,ME,new england,TRUE
+NB,new brunswick,TRUE,ATL,CA.NB,ME,new england,TRUE

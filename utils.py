@@ -20,38 +20,6 @@ import pytz
 
 
 
-def fill_references_table():
-
-    conn = sqlite3.connect(config.database_file)
-    curs = conn.cursor()
-
-    references = set()
-
-    # Get all tables
-    all_tables = [fetch[0] for fetch in curs.execute("SELECT name FROM sqlite_master WHERE type='table';").fetchall()]
-
-    for table in all_tables:
-        if table == 'references': continue
-
-        # For any table with a reference column
-        cols = [description[0] for description in curs.execute(f"SELECT * FROM '{table}'").description]
-        if 'reference' in cols:
-
-            # Get all the unique references and add them to the set
-            refs = curs.execute(f"SELECT DISTINCT reference FROM '{table}' WHERE length(reference) > 1")
-            for ref in refs:
-                for r in ref[0].split('; '):
-                    references.add(r)
-
-    # Add all references in the set to the references tables
-    for reference in references:
-        if len(reference) > 1: curs.execute(f"REPLACE INTO 'references'(reference) VALUES('{reference}')")
-
-    conn.commit()
-    conn.close()
-
-
-
 # Cleans up strings for filenames, databases, etc.
 def string_cleaner(string):
 
@@ -77,52 +45,13 @@ def compr_db_url(region, table_number):
 
 
 
-def get_statcan_table(table, save_as=None, **kwargs):
+# Gets a formatted dataset ID
+def data_id(text: str = ''):
 
-    if save_as == None: save_as = f"statcan_{table}.csv"
-    if os.path.splitext(save_as)[1] != ".csv": save_as += ".csv"
+    id = f"{config.params['data_id_prefix']}{text}{config.params['data_version']}"
+    config.data_ids.add(id)
+    return id
 
-    if not config.params['force_download'] and os.path.isfile(config.cache_dir + save_as):
-
-        try:
-
-            df = pd.read_csv(config.cache_dir + save_as, index_col=0)
-            
-            print(f"Got Statcan table {table} from local cache.")
-            return df
-        
-        except Exception as e:
-
-            print(f"Could not get Statcan table {table} from local cache. Trying to download instead.")
-
-    # Make a request from the API for the table, returns response status and url for download
-    url = f"https://www150.statcan.gc.ca/t1/wds/rest/getFullTableDownloadCSV/{table}/en"
-    response = requests.get(url).json()
-
-    # If successful, download the table
-    if response['status'] == 'SUCCESS':
-
-        print(f"Downloading Statcan table {table}...")
-
-        # Download and open the zip file
-        filehandle,_ = urllib.request.urlretrieve(response['object'])
-        zip_file_object = zipfile.ZipFile(filehandle, 'r')
-
-        # Read the table from inside the zip file
-        from_file = zip_file_object.open(f"{table}.csv", "r")
-        df = pd.read_csv(from_file, **kwargs)
-        from_file.close()
-
-        df.to_csv(config.cache_dir + save_as)
-
-        print(f"Cached Statcan table {table}.")
-        return df
-
-    else:
-
-        print(f"Request for {table} from Statcan failed. Status: {response['status']}")
-        return None
-    
 
 
 def get_compr_db(region, table_number, first_row=0, last_row=None) -> pd.DataFrame:
@@ -284,6 +213,56 @@ def realign_timezone(df: pd.DataFrame, from_timezone:str=None, to_timezone:str=N
     df_shifted = pd.concat([df_shifted.iloc[n_shift:], df_shifted.iloc[0:n_shift]])
 
     return df_shifted
+
+
+
+def get_statcan_table(table, save_as=None, filter:'function'=None, **kwargs):
+
+        if save_as == None: save_as = f"statcan_{table}.csv"
+        if os.path.splitext(save_as)[1] != ".csv": save_as += ".csv"
+
+        if not config.params['force_download'] and os.path.isfile(config.cache_dir + save_as):
+
+            try:
+
+                df = pd.read_csv(config.cache_dir + save_as, index_col=0)
+                
+                print(f"Got Statcan table {table} ({save_as}) from local cache.")
+                return df
+            
+            except Exception as e:
+
+                print(f"Could not get Statcan table {table} from local cache. Trying to download instead.")
+
+        # Make a request from the API for the table, returns response status and url for download
+        url = f"https://www150.statcan.gc.ca/t1/wds/rest/getFullTableDownloadCSV/{table}/en"
+        response = requests.get(url)
+
+        # If successful, download the table
+        if response.ok:
+
+            print(f"Downloading Statcan table {table}...")
+
+            # Download and open the zip file
+            filehandle,_ = urllib.request.urlretrieve(response.json()['object'])
+            zip_file_object = zipfile.ZipFile(filehandle, 'r')
+
+            # Read the table from inside the zip file
+            from_file = zip_file_object.open(f"{table}.csv", "r")
+            df = pd.read_csv(from_file, **kwargs)
+            from_file.close()
+
+            if filter: df = filter(df)
+
+            df.to_csv(config.cache_dir + save_as)
+
+            print(f"Cached Statcan table {table} as {save_as}.")
+            return df
+
+        else:
+
+            print(f"Request for {table} from Statcan failed. Status: {response.status_code}")
+            return None
     
 
 

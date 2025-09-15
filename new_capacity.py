@@ -7,18 +7,17 @@ from setup import config
 import sqlite3
 import utils
 import pandas as pd
+from currency_conversion import conv_curr
 
 
 
-def aggregate_region(region: str, df_exs: pd.DataFrame, df_dsd: pd.DataFrame):
+def aggregate_region(region: str, df_exs: pd.DataFrame):
 
     conn = sqlite3.connect(config.database_file)
     curs = conn.cursor()
 
-    aeo_ref = config.params['aeo_reference']
     aeo_year = config.params['aeo_installed_year']
     comstock_year = config.params['comstock']['data_year']
-    comstock_ref = config.params['comstock']['reference']
 
 
     """
@@ -55,28 +54,34 @@ def aggregate_region(region: str, df_exs: pd.DataFrame, df_dsd: pd.DataFrame):
 
 
         ## Technologies
-        curs.execute(f"""REPLACE INTO
-                     technologies(tech, flag, sector, tech_desc)
-                     VALUES('{tech}', 'p', 'commercial', '{end_use} {tech_config['description']}')""")
+        curs.execute(
+            f"""REPLACE INTO
+            Technology(tech, flag, sector, annual, description, data_id)
+            VALUES('{tech}', 'p', 'commercial', 1, '{end_use} {tech_config['description']}', '{utils.data_id()}')"""
+        )
 
 
         ## LifetimeTech
         life = round(aeo_data['life'])
         note = f"Rounded life from AEO CDM ktekx technology menu for technology {tech_config['aeo_tech']} (AEO, {aeo_year})"
-        reference = aeo_ref
-        curs.execute(f"""REPLACE INTO
-                    LifetimeTech(regions, tech, life, life_notes,
-                    reference, data_year, dq_est, dq_rel, dq_comp, dq_time, dq_geog, dq_tech)
-                    VALUES('{region}', '{tech}', {life}, '{note}',
-                    '{reference}', {aeo_year}, 1, 1, 1, 1, 3, 1)""")
+        ref = config.refs.get('aeo')
+        curs.execute(
+            f"""REPLACE INTO
+            LifetimeTech(region, tech, lifetime,
+            notes, data_source, dq_cred, dq_geog, dq_struc, dq_tech, dq_time, data_id) 
+            VALUES('{region}', '{tech}', {life},
+            '{note}', '{ref.id}', 1, 2, 1, 2, 3, '{utils.data_id(region)}')"""
+        )
         
 
         ## CapacityToActivity
         c2a = 1 # Capacity is in PJ/y and activity is in PJ
         note = "Capacity is in PJ/y and activity is in PJ so 1"
-        curs.execute(f"""REPLACE INTO
-                    CapacityToActivity(regions, tech, c2a, c2a_notes)
-                    VALUES('{region}', '{tech}', {c2a}, '{note}')""")
+        curs.execute(
+            f"""REPLACE INTO
+            CapacityToActivity(region, tech, c2a, notes, data_id)
+            VALUES('{region}', '{tech}', {c2a}, '{note}', '{utils.data_id(region)}')"""
+        )
 
 
         # Only indexed by vintage
@@ -85,23 +90,28 @@ def aggregate_region(region: str, df_exs: pd.DataFrame, df_dsd: pd.DataFrame):
             ## Efficiency
             eff = aeo_data['efficiency']
             note = f"From AEO CDM ktekx technology menu for technology {tech_config['aeo_tech']} (AEO, {aeo_year})"
-            reference = aeo_ref
-            curs.execute(f"""REPLACE INTO
-                        Efficiency(regions, input_comm, tech, vintage, output_comm, efficiency, eff_notes,
-                        reference, data_year, dq_est, dq_rel, dq_comp, dq_time, dq_geog, dq_tech)
-                        VALUES('{region}', '{fuel_config['comm']}', '{tech}', {vint}, '{eu_config['comm']}', {eff}, '{note}',
-                        '{reference}', {aeo_year}, 1, 1, 1, 1, 3, 1)""")
+            ref = config.refs.get('aeo')
+            curs.execute(
+                f"""REPLACE INTO
+                Efficiency(region, input_comm, tech, vintage, output_comm, efficiency,
+                notes, data_source, dq_cred, dq_geog, dq_struc, dq_tech, dq_time, data_id)
+                VALUES('{region}', '{fuel_config['comm']}', '{tech}', {vint}, '{eu_config['comm']}', {eff},
+                '{note}', '{ref.id}', 1, 2, 3, 2, 2, '{utils.data_id(region)}')"""
+            )
             
 
             ## CostInvest
             cost_invest = aeo_data['capcst'] * config.params['conversion_factors']['cost']['aeo']
+            cost_invest = conv_curr(cost_invest)
             note = f"Capcst from AEO CDM ktekx technology menu for technology {tech_config['aeo_tech']} (AEO, {aeo_year})"
-            reference = aeo_ref
-            curs.execute(f"""REPLACE INTO
-                        CostInvest(regions, tech, vintage, cost_invest_notes, data_cost_invest, data_cost_year, data_curr,
-                        reference, data_year, dq_est, dq_rel, dq_comp, dq_time, dq_geog, dq_tech)
-                        VALUES('{region}', '{tech}', {vint}, '{note}', {cost_invest}, {config.params['aeo_currency_year']}, '{config.params['aeo_currency']}',
-                        '{reference}', {aeo_year}, 1, 1, 1, 1, 3, 1)""")
+            ref = config.refs.get('aeo')
+            curs.execute(
+                f"""REPLACE INTO
+                CostInvest(region, tech, vintage, cost, units,
+                notes, data_source, dq_cred, dq_geog, dq_struc, dq_tech, dq_time, data_id)
+                VALUES('{region}', '{tech}', {vint}, {cost_invest}, 'M$/PJ/y',
+                '{note}', '{ref.id}', 1, 2, 1, 2, 2, '{utils.data_id(region)}')"""
+            )
             
 
             # Indexed by period and vintage
@@ -111,38 +121,32 @@ def aggregate_region(region: str, df_exs: pd.DataFrame, df_dsd: pd.DataFrame):
 
                 ## CostFixed
                 cost_fixed = aeo_data['maintcst'] * config.params['conversion_factors']['cost']['aeo']
+                cost_fixed = conv_curr(cost_fixed)
                 note = f"Maintcst from AEO CDM ktekx technology menu for technology {tech_config['aeo_tech']} (AEO, {aeo_year})"
-                reference = aeo_ref
-                curs.execute(f"""REPLACE INTO
-                            CostFixed(regions, periods, tech, vintage, cost_fixed_notes, data_cost_fixed, data_cost_year, data_curr,
-                            reference, data_year, dq_est, dq_rel, dq_comp, dq_time, dq_geog, dq_tech)
-                            VALUES('{region}', {period}, '{tech}', {vint}, '{note}', {cost_fixed}, {config.params['aeo_currency_year']}, '{config.params['aeo_currency']}',
-                            '{reference}', {aeo_year}, 1, 1, 1, 1, 3, 1)""")
+                ref = config.refs.get('aeo')
+                curs.execute(
+                    f"""REPLACE INTO
+                    CostFixed(region, period, tech, vintage, cost, units,
+                    notes, data_source, dq_cred, dq_geog, dq_struc, dq_tech, dq_time, data_id)
+                    VALUES('{region}', {period}, '{tech}', {vint}, {cost_fixed}, 'M$/PJ',
+                    '{note}', '{ref.id}', 1, 2, 1, 2, 2, '{utils.data_id(region)}')"""
+                )
 
 
         ## AnnualCapacityFactor
         acf = df_exs.loc[(end_use, tech_config['fuel']), 'acf']
         note = f"Mean hourly demand divided by peak hourly demand from Comstock (NREL, {comstock_year})"
-        reference = comstock_ref
-
-        #if acf > acf_lim:
-        #    acf = acf_lim
-        #    note += f". Bounded to mean(DSD)/max(DSD) for {end_use}"
-        #    print(f"Warning! Annual capacity factor for {region} {tech} {tech_config['end_use']} was too high and had to be bounded. "
-        #            "ACF cannot be higher than mean(DSD)/max(DSD) or the model will have no solution.")
+        ref = config.refs.get('comstock')
             
         for period in config.model_periods:
                 
-            #curs.execute(f"""REPLACE INTO
-            #            MinAnnualCapacityFactor(regions, periods, tech, output_comm, min_acf, min_acf_notes,
-            #            reference, data_year, dq_est, dq_rel, dq_comp, dq_time, dq_geog, dq_tech)
-            #            VALUES('{region}', {period}, '{tech}', '{eu_config['comm']}', {acf*0.99}, '{note}. Times 0.99 for computational slack.',
-            #            '{reference}', {comstock_year}, 4, 2, 1, {utils.dq_time(comstock_year, period)}, 3, 3)""")
-            curs.execute(f"""REPLACE INTO
-                        MaxAnnualCapacityFactor(regions, periods, tech, output_comm, max_acf, max_acf_notes,
-                        reference, data_year, dq_est, dq_rel, dq_comp, dq_time, dq_geog, dq_tech)
-                        VALUES('{region}', {period}, '{tech}', '{eu_config['comm']}', {acf}, '{note}',
-                        '{reference}', {comstock_year}, 4, 2, 1, {utils.dq_time(comstock_year, period)}, 3, 3)""")
+            curs.execute(
+                f"""REPLACE INTO
+                LimitAnnualCapacityFactor(region, period, tech, output_comm, operator, factor,
+                notes, data_source, dq_cred, dq_geog, dq_struc, dq_tech, dq_time, data_id)
+                VALUES('{region}', {period}, '{tech}', '{eu_config['comm']}', 'le', {acf},
+                '{note}', '{ref.id}', 1, 2, 5, 2, 3, '{utils.data_id(region)}')"""
+            )
             
     
     conn.commit()

@@ -1,0 +1,11 @@
+Commercial sector annual updates list:
+1. Latest AEO NEMS data
+	- Download and replace ktekx.xlsx in input_files
+	- Update row and column indices in setup.py
+	- Update any changed technology names in input_files/new_technologies.csv
+2. Update datasets
+	- Update data years and references in params.yaml
+	- Make a copy of data_cache folder then empty it
+	- Run scripts to see what breaks (then fix it)
+3. Check TODOs (use TODO tree extension in VSCode)
+4. Update to match new SQLite schema
