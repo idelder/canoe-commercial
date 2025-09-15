@@ -500,7 +500,7 @@ def aggregate_other(region: str, df_exs: pd.DataFrame, df_dsd: pd.DataFrame):
             ref = config.refs.get('nrcan_cef')
             curs.execute(
                 f"""REPLACE INTO
-                LimitTechInputSplit(region, period, input_comm, tech, operator, proportion,
+                LimitTechInputSplitAnnual(region, period, input_comm, tech, operator, proportion,
                 notes, data_source, dq_cred, dq_geog, dq_struc, dq_tech, dq_time, data_id)
                 VALUES('{region}', {period}, '{fuel_config['comm']}', '{tech}', 'le', {tis},
                 '{note}', '{ref.id}', 1, 1, 5, 1, 1, '{utils.data_id(region)}')"""
