@@ -39,15 +39,14 @@ cef_reference: "CER. (2023). Canadas Energy Future Data Appendices [dataset]. ht
 # The ACF limit changes if DSD is changed (e.g. during representative day selection/weighting) so a larger buffer is safer
 #acf_buffer: 0.05
 
-# Ignore existing capacity which is less than this times total existing capacity, per end use
-# Straggler technologies lead to data issues (e.g. shows in Canadian province but not in analogue US state)
-# These tiny existing capacities also have minimal impact on model outcomes and only add more variables to solve
-# Try increasing if sector construction throws missing key errors (e.g. 'oil' or 'space cooling', 'natural gas')
-existing_capacity_tolerance: 0.02
-
 # Set DSD to zero if less than this times hourly average (i.e. dsd(h) = 0 if dsd(h) < tol * mean(dsd))
 # For computational reasons
 dsd_tolerance: 0.02
+
+# There might be some tiny residual consumption of e.g., oil for other end uses. We don't really want tiny
+# flows in the model as they slow things down without meaningfully changing outcomes, so filter out any 
+# secondary energy consumption that's less than this fraction of total energy consumption in any region.
+sec_tolerance: 0.05
 
 sqlite_schema: "canoe_dataset_schema.sql"
 sqlite_database: "commercial.sqlite"

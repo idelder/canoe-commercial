@@ -72,6 +72,7 @@ def aggregate_existing_sphc(region: str, df_dsd: pd.DataFrame) -> pd.DataFrame:
 
     # Slice up using Statcan data if its an atlantic province
     sec_sph = get_atlantic_fractions(region, sec_sph)
+    sec_sph = sec_sph.loc[sec_sph/sec_sph.sum() > config.params['sec_tolerance']] # drop tiny energy consumptions
         
     df_sph = pd.DataFrame(data=sec_sph.values, columns=['sec'])
     df_sph['end_use'] = 'space heating'
@@ -79,21 +80,17 @@ def aggregate_existing_sphc(region: str, df_dsd: pd.DataFrame) -> pd.DataFrame:
 
     # Cut off threshold
     sec_tot = df_sph['sec'].sum()
-    df_sph = df_sph.loc[(df_sph['sec'] / sec_tot) > config.params['existing_capacity_tolerance']]
 
     # Table 32: Space Cooling Secondary Energy Use and GHG Emissions by Energy Source
     sec_spc = utils.get_compr_db(region, 32, 3, 5)[base_year].astype(float)
 
     # Slice up using Statcan data if its an atlantic province
     sec_spc = get_atlantic_fractions(region, sec_spc)
+    sec_spc = sec_spc.loc[sec_spc/sec_spc.sum() > config.params['sec_tolerance']] # drop tiny energy consumptions
 
     df_spc = pd.DataFrame(data=sec_spc.values, columns=['sec'])
     df_spc['end_use'] = 'space cooling'
     df_spc['fuel'] = sec_spc.index
-    
-    # Cut off threshold
-    sec_tot = df_spc['sec'].sum()
-    df_spc = df_spc.loc[(df_spc['sec'] / sec_tot) > config.params['existing_capacity_tolerance']]
 
     # Getting things into a single dataframe for tidier handling
     df_exs = pd.concat([df_sph, df_spc])
@@ -425,21 +422,24 @@ def aggregate_other(region: str, df_exs: pd.DataFrame, df_dsd: pd.DataFrame):
     # Table 1: Secondary Energy Use and GHG Emissions by Energy Source
     sec: pd.Series = utils.get_compr_db(region, 1, 3, 8)[base_year].astype(float)
 
-    # Slice up using Statcan data if its an atlantic province
-    sec = get_atlantic_fractions(region, sec)
-
-    # Demand is sum of secondary energies minus those from space heating and cooling (already accounted for)
-    ann_dem = (sec.sum() - sec_sphc.sum()) * config.gdp_index # annual demand indexed to gdp growth
-
     # Aggregate heavy/light oil and propane/natural gas as we dont have that technological resolution
     sec['oil'] = sec['light fuel oil and kerosene'] + sec['heavy fuel oil']
     sec['natural gas'] = sec['natural gas'] + sec['other']
     #sec_sph['district'] = sec_sph['steam'] # TODO dont have technoeconomic data for district schemes yet so ignore
     sec.drop(['other','steam','light fuel oil and kerosene','heavy fuel oil'], inplace=True)
 
-    # TechInputSplit ratios are fuel shares of residual secondary energy consumption
+    # Slice up using Statcan data if its an atlantic province
+    sec = get_atlantic_fractions(region, sec)
+
+    # Fuel might be used for other but not sphc
     for fuel in sec.index.difference(sec_sphc.index): sec_sphc[fuel] = 0
+
     sec_oth = sec - sec_sphc
+    sec_oth = sec_oth.loc[sec_oth/sec_oth.sum() > config.params['sec_tolerance']] # drop tiny energy consumptions
+    # Demand is sum of secondary energies minus those from space heating and cooling (already accounted for)
+    ann_dem = sec_oth.sum() * config.gdp_index # annual demand indexed to gdp growth
+
+    # TechInputSplit ratios are fuel shares of residual secondary energy consumption
     ti_splits = sec_oth / sec_oth.sum()
 
 
@@ -609,10 +609,10 @@ def get_atlantic_fractions(region: str, sec: pd.Series) -> pd.Series:
     # Dice up secondary energy using Statcan proportions
     sec = sec.copy()
     for fuel in sec.index:
-        if fuel not in df.index:
-            sec[fuel] = 0
-        else:
+        if fuel in df.index:
             sec[fuel] *= df.loc[fuel]
+        else:
+            sec = sec.drop(fuel)
 
     return sec
 
