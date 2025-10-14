@@ -15,9 +15,7 @@ weather_year: 2018 # For normalised timeseries data only
 base_year: 2022 # Default year to pull data from
 timezone: 'EST' # Final synchronised timezone for all timeseries data
 
-global_discount_rate: 0.05
-
-data_id_prefix: 'COM'
+data_id_prefix: 'COMHR'
 data_version: '001'
 
 # Currency, data costs are exchanged and inflated in post processing
