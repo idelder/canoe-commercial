@@ -1,4 +1,4 @@
-﻿fuel,comm,description,unit,epa_fuel,statcan_fuel
-oil,C_oil,heating oil in the commercial sector,PJ,Distillate Fuel Oil No. 2,Total refined petroleum products
-natural gas,C_ng,natural gas in the commercial sector,PJ,Natural Gas,Natural gas
-electricity,C_elc,electricity in the commercial sector,PJ,,"Primary electricity, hydro and nuclear"
+﻿fuel,comm,description,unit,epa_fuel,statcan_fuel,flag
+oil,C_oil,heating oil in the commercial sector,PJ,Distillate Fuel Oil No. 2,Total refined petroleum products,a
+natural gas,C_ng,natural gas in the commercial sector,PJ,Natural Gas,Natural gas,a
+electricity,C_elc,electricity in the commercial sector,PJ,,"Primary electricity, hydro and nuclear",p

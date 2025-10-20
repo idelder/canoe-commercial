@@ -72,14 +72,10 @@ def aggregate_existing_sphc(region: str, df_dsd: pd.DataFrame) -> pd.DataFrame:
 
     # Slice up using Statcan data if its an atlantic province
     sec_sph = get_atlantic_fractions(region, sec_sph)
-    sec_sph = sec_sph.loc[sec_sph/sec_sph.sum() > config.params['sec_tolerance']] # drop tiny energy consumptions
         
     df_sph = pd.DataFrame(data=sec_sph.values, columns=['sec'])
     df_sph['end_use'] = 'space heating'
     df_sph['fuel'] = sec_sph.index
-
-    # Cut off threshold
-    sec_tot = df_sph['sec'].sum()
 
     # Table 32: Space Cooling Secondary Energy Use and GHG Emissions by Energy Source
     sec_spc = utils.get_compr_db(region, 32, 3, 5)[base_year].astype(float)
@@ -152,6 +148,10 @@ def aggregate_existing_sphc(region: str, df_dsd: pd.DataFrame) -> pd.DataFrame:
 
     ## 8. Calculate existing capacity as CAP = DEM / (ACF x C2A) = DEM / ACF
     df_exs['cap'] = df_exs['dem'] / df_exs['acf']
+
+
+    # If energy is less than threshold, set existing capacity to zero
+    df_exs['cap'] = df_exs['cap'].where(df_exs['dem']/df_exs['dem'].sum() > config.params['sec_tolerance'], 0) # drop tiny energy consumptions
 
     
     ## Save calculated existing data to local cache for review

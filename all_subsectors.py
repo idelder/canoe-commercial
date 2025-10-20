@@ -110,7 +110,7 @@ def pre_process():
         curs.execute(
             f"""REPLACE INTO
             Commodity(name, flag, description, data_id)
-            VALUES('{comm_config['comm']}', 'p', '({comm_config['unit']}) {comm_config['description']}', '{utils.data_id()}')"""
+            VALUES('{comm_config['comm']}', '{comm_config['flag']}', '({comm_config['unit']}) {comm_config['description']}', '{utils.data_id()}')"""
         )
         
     if config.params['include_emissions']:

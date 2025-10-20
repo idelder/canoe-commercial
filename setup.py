@@ -150,7 +150,7 @@ class config:
     def _get_files(cls):
 
         config.schema_file = config.input_files + config.params['sqlite_schema']
-        config.database_file = config._this_dir + config.params['sqlite_database']
+        config.database_file = config.params['sqlite_database']
         config.excel_template_file = config.input_files + config.params['excel_template']
         config.excel_target_file = config._this_dir + config.params['excel_output']
 

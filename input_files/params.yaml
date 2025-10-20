@@ -15,9 +15,7 @@ weather_year: 2018 # For normalised timeseries data only
 base_year: 2022 # Default year to pull data from
 timezone: 'EST' # Final synchronised timezone for all timeseries data
 
-global_discount_rate: 0.05
-
-data_id_prefix: 'COM'
+data_id_prefix: 'COMHR'
 data_version: '001'
 
 # Currency, data costs are exchanged and inflated in post processing
@@ -84,8 +82,8 @@ gdp_data_year: 2023
 epa_reference: "US EPA. (2025, January). GHG Emission Factors Hub [Overviews and Factsheets]. https://www.epa.gov/climateleadership/ghg-emission-factors-hub"
 epa_year: 2025 # If updating, check if GWP factors have changed and update below
 epa_url: 'https://www.epa.gov/system/files/other-files/2025-01/ghg-emission-factors-hub-2025.xlsx'
-emission_commodity: 'CO2eq'
-emission_activity_units: 'ktCO2eq/PJ'
+emission_commodity: 'co2e'
+emission_activity_units: 'ktCO2e/PJ'
 
 conversion_factors:
   epa_units:
