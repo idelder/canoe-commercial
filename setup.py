@@ -113,7 +113,7 @@ class config:
         cls._get_params(cls._instance)
         cls._get_files(cls._instance)
         cls._get_aeo_data(cls._instance)
-        cls._get_population_projections(cls._instance)
+        # cls._get_population_projections(cls._instance) # we use GDP for commercial
         cls._get_gdp_projections(cls._instance)
         cls._get_rninja_api(cls._instance)
         cls._get_references(cls._instance)
@@ -175,59 +175,59 @@ class config:
         
 
     
-    def _get_population_projections(cls) -> pd.DataFrame:
+    # def _get_population_projections(cls) -> pd.DataFrame:
 
-        config.populations = dict()
+    #     config.populations = dict()
 
-        # Get historical population data from Statcan and take Q1
-        df_exs = config._get_statcan_table(
-            table=17100009,
-            save_as='population_historical',
-            filter=lambda df: df.loc[
-                df['REF_DATE'].str.contains('-01')
-            ],
-            usecols=[0,1,9],
-        )
-        df_exs['REF_DATE'] = df_exs['REF_DATE'].str.removesuffix("-01")
+    #     # Get historical population data from Statcan and take Q1
+    #     df_exs = config._get_statcan_table(
+    #         table=17100009,
+    #         save_as='population_historical',
+    #         filter=lambda df: df.loc[
+    #             df['REF_DATE'].str.contains('-01')
+    #         ],
+    #         usecols=[0,1,9],
+    #     )
+    #     df_exs['REF_DATE'] = df_exs['REF_DATE'].str.removesuffix("-01")
 
-        # Get projected population data from Statcan for M1 scenario
-        df_proj = config._get_statcan_table(
-            table=17100057,
-            save_as='population_projection',
-            filter= lambda df: df.loc[
-                (df['Projection scenario'] == 'Projection scenario M1: medium-growth')
-                & (df['Gender'] == 'Total - gender')
-                & (df['Age group'] == 'All ages')
-            ],
-            usecols=[0,1,3,4,5,12],
-        )
-        df_proj['VALUE'] *= 1000
+    #     # Get projected population data from Statcan for M1 scenario
+    #     df_proj = config._get_statcan_table(
+    #         table=17100057,
+    #         save_as='population_projection',
+    #         filter= lambda df: df.loc[
+    #             (df['Projection scenario'] == 'Projection scenario M1: medium-growth')
+    #             & (df['Gender'] == 'Total - gender')
+    #             & (df['Age group'] == 'All ages')
+    #         ],
+    #         usecols=[0,1,3,4,5,12],
+    #     )
+    #     df_proj['VALUE'] *= 1000
 
-        # For each region, take historical first, then provincial, then index to Canadian when that runs out
-        for region, row in config.regions.iterrows():
+    #     # For each region, take historical first, then provincial, then index to Canadian when that runs out
+    #     for region, row in config.regions.iterrows():
 
-            if not row ['include']: continue
+    #         if not row ['include']: continue
             
-            # Existing data
-            exs = df_exs.loc[df_exs['GEO'].str.upper() == row['description'].upper()].dropna()
+    #         # Existing data
+    #         exs = df_exs.loc[df_exs['GEO'].str.upper() == row['description'].upper()].dropna()
 
-            # Projected provincial data
-            prov = df_proj.loc[(df_proj['GEO'].str.upper() == row['description'].upper()) &
-                            (df_proj['REF_DATE'] > int(exs['REF_DATE'].values[-1]))].dropna()
+    #         # Projected provincial data
+    #         prov = df_proj.loc[(df_proj['GEO'].str.upper() == row['description'].upper()) &
+    #                         (df_proj['REF_DATE'] > int(exs['REF_DATE'].values[-1]))].dropna()
             
-            # Index missing provincial data to Canadian projections
-            ca = df_proj.loc[(df_proj['GEO'].str.upper() == 'CANADA') & 
-                            (df_proj['REF_DATE'] >= int(prov['REF_DATE'].values[-1]))].dropna()
-            ca['VALUE'] = ca['VALUE'].iloc[1::] * prov['VALUE'].values[-1] / ca['VALUE'].values[0]
-            ca.dropna(inplace=True)
+    #         # Index missing provincial data to Canadian projections
+    #         ca = df_proj.loc[(df_proj['GEO'].str.upper() == 'CANADA') & 
+    #                         (df_proj['REF_DATE'] >= int(prov['REF_DATE'].values[-1]))].dropna()
+    #         ca['VALUE'] = ca['VALUE'].iloc[1::] * prov['VALUE'].values[-1] / ca['VALUE'].values[0]
+    #         ca.dropna(inplace=True)
 
-            # Create dataframe of population for all years
-            data = [*exs['VALUE'].to_list(), *prov['VALUE'].to_list(), *ca['VALUE'].to_list()]
-            pop = pd.DataFrame(index = range(int(exs['REF_DATE'].values[0]), int(ca['REF_DATE'].values[-1]+1)), data = [int(d) for d in data], columns=['population'])
-            pop.index.rename('year', inplace=True)
+    #         # Create dataframe of population for all years
+    #         data = [*exs['VALUE'].to_list(), *prov['VALUE'].to_list(), *ca['VALUE'].to_list()]
+    #         pop = pd.DataFrame(index = range(int(exs['REF_DATE'].values[0]), int(ca['REF_DATE'].values[-1]+1)), data = [int(d) for d in data], columns=['population'])
+    #         pop.index.rename('year', inplace=True)
 
-            # Add to dictionary of regional population projections
-            config.populations[region] = pop
+    #         # Add to dictionary of regional population projections
+    #         config.populations[region] = pop
 
 
     
