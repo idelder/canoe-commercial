@@ -133,18 +133,16 @@ def aggregate_region(region: str, df_exs: pd.DataFrame):
                 )
 
 
-        ## AnnualCapacityFactor
-        acf = df_exs.loc[(end_use, tech_config['fuel']), 'acf']
-        note = f"Mean hourly demand divided by peak hourly demand from Comstock (NREL, {comstock_year})"
-        ref = config.refs.get('comstock')
-            
-        for period in config.model_periods:
-                
+            ## AnnualCapacityFactor
+            acf = df_exs.loc[(end_use, tech_config['fuel']), 'acf']
+            note = f"Mean hourly demand divided by peak hourly demand from Comstock (NREL, {comstock_year})"
+            ref = config.refs.get('comstock')
+                    
             curs.execute(
                 f"""REPLACE INTO
-                LimitAnnualCapacityFactor(region, period, tech, output_comm, operator, factor,
+                LimitAnnualCapacityFactor(region, tech, vintage, output_comm, operator, factor,
                 notes, data_source, dq_cred, dq_geog, dq_struc, dq_tech, dq_time, data_id)
-                VALUES('{region}', {period}, '{tech}', '{eu_config['comm']}', 'le', {acf},
+                VALUES('{region}', '{tech}', {vint}, '{eu_config['comm']}', 'le', {acf},
                 '{note}', '{ref.id}', 1, 2, 5, 2, 3, '{utils.data_id(region)}')"""
             )
             
